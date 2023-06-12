@@ -1,7 +1,30 @@
 //
 import { JSDOM } from 'jsdom';
 
-export function getUrlsFromHTML(htmlBody: string, baseURL: string) {
+export async function crawlPage(
+  baseURL: string,
+  currentURL: string,
+  pages: string
+) {
+  let result;
+  try {
+    const res = await fetch(currentURL);
+    if (
+      res.status < 399 &&
+      res.headers.get('content-type')?.includes('text/html')
+    ) {
+      result = await res.text();
+    } else {
+      console.log(`error handling your response for ${currentURL}`);
+      return;
+    }
+  } catch (error) {
+    console.log(error);
+  }
+  return result;
+}
+
+export function getUrlsFromHTML(htmlBody: string, baseURL: string): object {
   const urls: string[] = [];
   const dom = new JSDOM(htmlBody);
   const linkElements = dom.window.document.querySelectorAll('a');
@@ -28,16 +51,17 @@ export function getUrlsFromHTML(htmlBody: string, baseURL: string) {
   return urls;
 }
 
-export function normarlizeUrl(url: string) {
+export function normarlizeUrl(url: string): string {
+  let domainPath;
   try {
     const urlObj = new URL(url);
-    const domainPath = `${urlObj.hostname}${urlObj.pathname}`;
+    domainPath = `${urlObj.hostname}${urlObj.pathname}`;
 
     if (domainPath.length && domainPath.slice(-1) === '/') {
       return domainPath.slice(0, -1);
     }
-    return domainPath;
   } catch (error: any) {
     console.log(error.message);
   }
+  return domainPath || '';
 }
