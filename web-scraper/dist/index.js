@@ -98,9 +98,9 @@ class Crawl {
 const crl = new Crawl();
 async function getAllUrl() {
     const pages = (await crl.crawlPage('https://duowork.github.io', 'https://duowork.github.io', {})) || {};
-    console.log(crl.docLink);
-    console.log(pages);
+    if (pages)
+        return crl.docLink;
     return pages;
 }
-console.log(getAllUrl());
+getAllUrl();
 exports.default = Crawl;

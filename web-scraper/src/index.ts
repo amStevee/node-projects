@@ -5,6 +5,7 @@ type Page = {
 };
 class Crawl {
   docLink: string[] = [];
+
   async crawlPage(baseURL: string, currentURL: string, pages: Page) {
     let connectionFailCount = 0;
     //================ BASECODE===========================//
@@ -115,13 +116,13 @@ async function getAllUrl() {
       'https://duowork.github.io',
       {}
     )) || {};
-    console.log(crl.docLink);
-    console.log(pages)
-
+    
+    if (pages) return crl.docLink;
+    
   return pages;
 }
 
-console.log(getAllUrl());
+getAllUrl()
 
 
 export default Crawl;
