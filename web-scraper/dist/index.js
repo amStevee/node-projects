@@ -1,98 +1,106 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.normarlizeUrl = exports.getUrlsFromHTML = exports.crawlPage = void 0;
-//
 const jsdom_1 = require("jsdom");
-console.log(crawlPage('https://blog.logrocket.com', 'https://blog.logrocket.com', {}));
-function crawlPage(baseURL, currentURL, pages) {
-    var _a;
-    return __awaiter(this, void 0, void 0, function* () {
+class Crawl {
+    constructor() {
+        this.docLink = [];
+    }
+    async crawlPage(baseURL, currentURL, pages) {
+        var _a;
+        let connectionFailCount = 0;
         //================ BASECODE===========================//
         const baseURLObj = new URL(baseURL);
         const currentURLObj = new URL(currentURL);
-        if (baseURLObj.hostname !== currentURLObj.hostname) {
+        if (baseURLObj.hostname !== currentURLObj.hostname)
+            return pages;
+        //   add url to pages and increment if url has already been crawled.
+        const normarlizedCurrentUrlAsIndex = this.normarlizeUrl(currentURL);
+        if (pages[normarlizedCurrentUrlAsIndex] > 0) {
+            pages[normarlizedCurrentUrlAsIndex]++;
             return pages;
         }
-        //   add url to object and increment if url has already been crawled.
-        const normarlizeCurrentURL = normarlizeUrl(currentURL);
-        if (pages[normarlizeCurrentURL] > 0) {
-            pages[normarlizeCurrentURL]++;
-            return pages;
-        }
-        pages[normarlizeCurrentURL] = 1;
+        pages[normarlizedCurrentUrlAsIndex] = 1;
         //===============BASECODE ENDS=========================//
-        //  asyn SET RESULT
+        //  Recursive call
         console.log(`crawling ${currentURL}..`);
         try {
-            const res = yield fetch(currentURL);
+            const res = await fetch(currentURL);
             if (res.status > 399 ||
                 !((_a = res.headers.get('content-type')) === null || _a === void 0 ? void 0 : _a.includes('text/html'))) {
                 console.log(`error handling response for ${currentURL} with status ${res.status}`);
                 return;
             }
-            const htmlText = yield res.text();
-            const nextUrls = getUrlsFromHTML(htmlText, currentURL);
+            const htmlText = await res.text();
+            const nextUrls = this.getUrlsFromHTML(htmlText, baseURL);
             for (const url of nextUrls) {
-                pages = (yield crawlPage(baseURL, url, pages)) || pages;
+                this.correlateDotDocLinks(url);
+                pages = (await this.crawlPage(baseURL, url, pages)) || pages;
             }
         }
         catch (error) {
-            console.log(error);
+            if (connectionFailCount === 0 || error.toJSON().message === "Network Error") {
+                connectionFailCount += 1;
+                crl.crawlPage(baseURL, currentURL, {});
+                console.log(`Connection error. \n
+            Reconnecting to server....`);
+            }
+            else if (connectionFailCount === 5) {
+                console.error(`Can not connect to server. Try again later.`);
+            }
         }
         return pages;
-    });
-}
-exports.crawlPage = crawlPage;
-function getUrlsFromHTML(htmlBody, baseURL) {
-    const urls = [];
-    const dom = new jsdom_1.JSDOM(htmlBody);
-    const linkElements = dom.window.document.querySelectorAll('a');
-    for (const link of linkElements) {
-        if (link.href.startsWith('/')) {
-            // link is relative
-            try {
-                const urlObj = new URL(`${baseURL}${link.href}`);
-                urls.push(urlObj.href);
-            }
-            catch (error) {
-                console.log(error.message);
+    }
+    getUrlsFromHTML(htmlBody, baseURL) {
+        const urls = [];
+        try {
+            const dom = new jsdom_1.JSDOM(htmlBody);
+            const linkElements = dom.window.document.querySelectorAll('a');
+            for (const link of linkElements) {
+                if (link.href.startsWith('/')) {
+                    // link is relative
+                    const urlObj = new URL(`${baseURL}${link.href}`);
+                    urls.push(urlObj.href);
+                }
+                else {
+                    // link is absolute
+                    const urlObj = new URL(link.href);
+                    urls.push(urlObj.href);
+                }
             }
         }
-        else {
-            // link is absolute
-            try {
-                const urlObj = new URL(link.href);
-                urls.push(urlObj.href);
+        catch (error) {
+            console.error(error.message);
+        }
+        return urls;
+    }
+    normarlizeUrl(url) {
+        let domainPath;
+        try {
+            const urlObj = new URL(url);
+            domainPath = `${urlObj.hostname}${urlObj.pathname}`;
+            if (domainPath.length && domainPath.slice(-1) === '/') {
+                return domainPath.slice(0, -1);
             }
-            catch (error) {
-                console.log(error.message);
+        }
+        catch (error) {
+            console.log(`error.message`);
+        }
+        return domainPath || '';
+    }
+    correlateDotDocLinks(link) {
+        for (const docLink of Object.keys(link)) {
+            if (docLink.endsWith('.pdf' || '.docx')) {
+                this.docLink.push(docLink);
             }
         }
     }
-    return urls;
 }
-exports.getUrlsFromHTML = getUrlsFromHTML;
-function normarlizeUrl(url) {
-    let domainPath;
-    try {
-        const urlObj = new URL(url);
-        domainPath = `${urlObj.hostname}${urlObj.pathname}`;
-        if (domainPath.length && domainPath.slice(-1) === '/') {
-            return domainPath.slice(0, -1);
-        }
-    }
-    catch (error) {
-        console.log(error.message);
-    }
-    return domainPath || '';
+const crl = new Crawl();
+async function getAllUrl() {
+    const pages = (await crl.crawlPage('https://duowork.github.io', 'https://duowork.github.io', {})) || {};
+    console.log(crl.docLink);
+    console.log(pages);
+    return pages;
 }
-exports.normarlizeUrl = normarlizeUrl;
+console.log(getAllUrl());
+exports.default = Crawl;
