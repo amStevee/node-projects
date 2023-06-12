@@ -22,7 +22,7 @@ class Crawl {
         pages[normarlizedCurrentUrlAsIndex] = 1;
         //===============BASECODE ENDS=========================//
         //  Recursive call
-        console.log(`crawling ${currentURL}..`);
+        console.log(`crawling==== ${currentURL}..`);
         try {
             const res = await fetch(currentURL);
             if (res.status > 399 ||
@@ -40,7 +40,7 @@ class Crawl {
         catch (error) {
             if (connectionFailCount === 0 || error.toJSON().message === "Network Error") {
                 connectionFailCount += 1;
-                crl.crawlPage(baseURL, currentURL, {});
+                this.crawlPage(baseURL, currentURL, {});
                 console.log(`Connection error. \n
             Reconnecting to server....`);
             }
@@ -89,18 +89,16 @@ class Crawl {
     }
     correlateDotDocLinks(link) {
         for (const docLink of Object.keys(link)) {
-            if (docLink.endsWith('.pdf' || '.docx')) {
+            if (docLink.endsWith('.pdf')) {
                 this.docLink.push(docLink);
             }
         }
     }
 }
-const crl = new Crawl();
-async function getAllUrl() {
-    const pages = (await crl.crawlPage('https://duowork.github.io', 'https://duowork.github.io', {})) || {};
-    if (pages)
-        return crl.docLink;
+async function logResult() {
+    const crl = new Crawl();
+    const pages = await crl.crawlPage('https://onlinebookclub.org', 'https://onlinebookclub.org', {}) || {};
     return pages;
 }
-getAllUrl();
+logResult();
 exports.default = Crawl;
