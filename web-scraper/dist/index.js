@@ -12,25 +12,43 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.normarlizeUrl = exports.getUrlsFromHTML = exports.crawlPage = void 0;
 //
 const jsdom_1 = require("jsdom");
+console.log(crawlPage('https://blog.logrocket.com', 'https://blog.logrocket.com', {}));
 function crawlPage(baseURL, currentURL, pages) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        let result;
+        //================ BASECODE===========================//
+        const baseURLObj = new URL(baseURL);
+        const currentURLObj = new URL(currentURL);
+        if (baseURLObj.hostname !== currentURLObj.hostname) {
+            return pages;
+        }
+        //   add url to object and increment if url has already been crawled.
+        const normarlizeCurrentURL = normarlizeUrl(currentURL);
+        if (pages[normarlizeCurrentURL] > 0) {
+            pages[normarlizeCurrentURL]++;
+            return pages;
+        }
+        pages[normarlizeCurrentURL] = 1;
+        //===============BASECODE ENDS=========================//
+        //  asyn SET RESULT
+        console.log(`crawling ${currentURL}..`);
         try {
             const res = yield fetch(currentURL);
-            if (res.status < 399 &&
-                ((_a = res.headers.get('content-type')) === null || _a === void 0 ? void 0 : _a.includes('text/html'))) {
-                result = yield res.text();
-            }
-            else {
-                console.log(`error handling your response for ${currentURL}`);
+            if (res.status > 399 ||
+                !((_a = res.headers.get('content-type')) === null || _a === void 0 ? void 0 : _a.includes('text/html'))) {
+                console.log(`error handling response for ${currentURL} with status ${res.status}`);
                 return;
+            }
+            const htmlText = yield res.text();
+            const nextUrls = getUrlsFromHTML(htmlText, currentURL);
+            for (const url of nextUrls) {
+                pages = (yield crawlPage(baseURL, url, pages)) || pages;
             }
         }
         catch (error) {
             console.log(error);
         }
-        return result;
+        return pages;
     });
 }
 exports.crawlPage = crawlPage;

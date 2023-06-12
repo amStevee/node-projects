@@ -1,30 +1,64 @@
 //
 import { JSDOM } from 'jsdom';
 
+type Page = {
+  [key: string]: number;
+};
+
+console.log(crawlPage('https://blog.logrocket.com', 'https://blog.logrocket.com', {}));
+
 export async function crawlPage(
   baseURL: string,
   currentURL: string,
-  pages: string
+  pages: Page
 ) {
-  let result;
+   //================ BASECODE===========================//
+  const baseURLObj = new URL(baseURL);
+  const currentURLObj = new URL(currentURL);
+  if (baseURLObj.hostname !== currentURLObj.hostname) {
+    return pages;
+  }
+
+  //   add url to object and increment if url has already been crawled.
+  const normarlizeCurrentURL = normarlizeUrl(currentURL);
+  if (pages[normarlizeCurrentURL] > 0) {
+    pages[normarlizeCurrentURL]++;
+    return pages;
+  }
+  pages[normarlizeCurrentURL] = 1;
+
+  //===============BASECODE ENDS=========================//
+
+  //  asyn SET RESULT
+  console.log(`crawling ${currentURL}..`);
   try {
     const res = await fetch(currentURL);
     if (
-      res.status < 399 &&
-      res.headers.get('content-type')?.includes('text/html')
+      res.status > 399 ||
+      !res.headers.get('content-type')?.includes('text/html')
     ) {
-      result = await res.text();
-    } else {
-      console.log(`error handling your response for ${currentURL}`);
+      console.log(
+        `error handling response for ${currentURL} with status ${res.status}`
+      );
       return;
     }
+
+    const htmlText = await res.text();
+
+    const nextUrls = getUrlsFromHTML(htmlText, currentURL);
+
+    for (const url of nextUrls){
+        pages = await crawlPage(baseURL, url, pages) || pages;
+    }
+
   } catch (error) {
     console.log(error);
   }
-  return result;
+
+  return pages
 }
 
-export function getUrlsFromHTML(htmlBody: string, baseURL: string): object {
+export function getUrlsFromHTML(htmlBody: string, baseURL: string): string[] {
   const urls: string[] = [];
   const dom = new JSDOM(htmlBody);
   const linkElements = dom.window.document.querySelectorAll('a');
